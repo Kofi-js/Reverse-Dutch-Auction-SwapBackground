@@ -30,7 +30,7 @@ async function main() {
     // Deploy Token
     console.log("\nDeploying Token...");
     const initialSupply = ethers.parseEther("1000000"); // 1 million tokens
-    const Token = await ethers.getContractFactory("TestToken");
+    const Token = await ethers.getContractFactory("IERC20");
     const token = await Token.deploy(
       "Turbulence",   // name
       "TBL",          // symbol

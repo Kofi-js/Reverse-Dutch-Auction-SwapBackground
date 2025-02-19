@@ -18,7 +18,7 @@ async function checkAuctionStatus() {
   const { auction: auctionAddress, token: tokenAddress } = await getDeployedAddresses();
   
   const auction = await ethers.getContractAt("ReverseDutchAuction", auctionAddress);
-  const token = await ethers.getContractAt("TestToken", tokenAddress);
+  const token = await ethers.getContractAt("IERC20", tokenAddress);
   
   const seller = await auction.seller();
   const initialPrice = await auction.startingPrice();
