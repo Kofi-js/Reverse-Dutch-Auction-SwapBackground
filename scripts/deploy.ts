@@ -27,44 +27,77 @@ async function main() {
   try {
     console.log("Starting deployment process...");
     
-    // Deploy Coin token
-    console.log("\nDeploying Coin Token...");
-    const initialSupply = 1000000; // 1 million tokens
-    const Coin = await ethers.getContractFactory("IERC20");
-    const coin = await Coin.deploy(
+    // Deploy Token
+    console.log("\nDeploying Token...");
+    const initialSupply = ethers.parseEther("1000000"); // 1 million tokens
+    const Token = await ethers.getContractFactory("TestToken");
+    const token = await Token.deploy(
       "Turbulence",   // name
-      "TBL",    // symbol
+      "TBL",          // symbol
       initialSupply
     );
     
-    await coin.waitForDeployment();
-    const coinAddress = await coin.getAddress();
-    console.log(`Coin Token deployed to: ${coinAddress}`);
+    await token.waitForDeployment();
+    const tokenAddress = await token.getAddress();
+    console.log(`Token deployed to: ${tokenAddress}`);
 
     // Get deployer address for logging
     const [deployer] = await ethers.getSigners();
     const deployerAddress = await deployer.getAddress();
     
     // Check initial balance
-    const initialBalance = await coin.balanceOf(deployerAddress);
-    const decimals = await coin.decimals();
-    console.log(`Initial supply: ${ethers.formatUnits(initialBalance, decimals)} ${await coin.symbol()}`);
-    console.log(`Owner: ${await coin.owner()}`);
+    const initialBalance = await token.balanceOf(deployerAddress);
+    console.log(`Initial supply: ${ethers.formatEther(initialBalance)} TBL`);
+
+    // Deploy Reverse Dutch Auction
+    console.log("\nDeploying Reverse Dutch Auction...");
+    const startingPrice = ethers.parseEther("1.0");
+    const priceDecreaseRate = ethers.parseEther("0.0001"); // Price drop per second
+    const auctionDuration = 3600; // 1 hour
+    
+    const ReverseDutchAuction = await ethers.getContractFactory("ReverseDutchAuction");
+    const auction = await ReverseDutchAuction.deploy(
+      tokenAddress,
+      startingPrice,
+      priceDecreaseRate,
+      auctionDuration
+    );
+    
+    await auction.waitForDeployment();
+    const auctionAddress = await auction.getAddress();
+    console.log(`Reverse Dutch Auction deployed to: ${auctionAddress}`);
+
+    // Deposit tokens to the auction
+    console.log("\nDepositing tokens to the auction...");
+    const tokensToDeposit = ethers.parseEther("10000"); // 10,000 tokens
+    await token.approve(auctionAddress, tokensToDeposit);
+    await auction.depositTokens(tokensToDeposit);
+    
+    const auctionBalance = await token.balanceOf(auctionAddress);
+    console.log(`Tokens deposited to auction: ${ethers.formatEther(auctionBalance)} TBL`);
 
     // Log deployment info
     console.log("\nDeployment Summary:");
     console.log("-------------------");
     console.log(`Network: ${network.name}`);
-    console.log(`Coin Token: ${coinAddress}`);
-    console.log(`Initial Supply: ${initialSupply} ${await coin.symbol()}`);
-    console.log(`Deployer/Owner: ${deployerAddress}`);
+    console.log(`Token: ${tokenAddress}`);
+    console.log(`Auction: ${auctionAddress}`);
+    console.log(`Starting Price: ${ethers.formatEther(startingPrice)} TBL`);
+    console.log(`Price Decrease Rate: ${ethers.formatEther(priceDecreaseRate)} TBL/second`);
+    console.log(`Auction Duration: ${auctionDuration} seconds`);
+    console.log(`Tokens for Sale: ${ethers.formatEther(auctionBalance)} TBL`);
+    console.log(`Deployer/Seller: ${deployerAddress}`);
 
     // Save deployment addresses
     const deployments = {
       network: network.name,
-      coin: coinAddress,
-      owner: deployerAddress,
-      initialSupply: initialSupply,
+      token: tokenAddress,
+      auction: auctionAddress,
+      seller: deployerAddress,
+      startingPrice: startingPrice.toString(),
+      priceDecreaseRate: priceDecreaseRate.toString(),
+      auctionDuration: auctionDuration,
+      tokensForSale: auctionBalance.toString(),
       timestamp: new Date().toISOString()
     }; 
 
@@ -82,10 +115,17 @@ async function main() {
     if (network.name !== "hardhat" && network.name !== "localhost") {
       console.log("\nStarting contract verification...");
       
-      await verifyContract(coinAddress, [
-        "My Coin",
-        "MYCOIN",
+      await verifyContract(tokenAddress, [
+        "Turbulence",
+        "TBL",
         initialSupply
+      ]);
+      
+      await verifyContract(auctionAddress, [
+        tokenAddress,
+        startingPrice,
+        priceDecreaseRate,
+        auctionDuration
       ]);
     }
 
